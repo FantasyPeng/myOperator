@@ -151,10 +151,10 @@ void produce() {
 	c = i + 'a';
 	put_item1(c);
 //	printf("buffer[%d],%c\n",i,c);
-	printf("produce item: %c \n",c);
 	
 	sema_signal(&mutex1);
 	sema_signal(&wait_buffer1_full);
+	printf("produce item: %c \n",c);
 	}	
 }
 

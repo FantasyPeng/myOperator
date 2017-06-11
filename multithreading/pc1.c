@@ -77,9 +77,9 @@ void * consume(void * arg) {
 			pthread_cond_wait(&wait_buffer2_full,&mutex2);
 		}	
 		c = get_item2();
-		printf("        consume item: %c \n",c);
 		pthread_cond_signal(&wait_buffer2_empty);
 		pthread_mutex_unlock(&mutex2);
+		printf("        consume item: %c \n",c);
 	}
 	return NULL;
 }
@@ -96,11 +96,11 @@ void * compute(void * arg) {
 		c = get_item1();		
 		c = c - 32;
 		put_item2(c);
-		printf("    compute item: %c \n",c);
 		pthread_cond_signal(&wait_buffer2_full);
 		pthread_cond_signal(&wait_buffer1_empty);
 		pthread_mutex_unlock(&mutex2);	
 		pthread_mutex_unlock(&mutex1);	
+		printf("    compute item: %c \n",c);
 	}	
 	return NULL;
 }
@@ -114,9 +114,9 @@ void produce() {
 	c = i + 'a';
 	put_item1(c);
 //	printf("buffer[%d],%c\n",i,c);
-	printf("produce item: %c \n",c);
 	pthread_cond_signal(&wait_buffer1_full);
 	pthread_mutex_unlock(&mutex1);		
+	printf("produce item: %c \n",c);
 	}	
 }
 
