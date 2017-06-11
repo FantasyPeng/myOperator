@@ -7,6 +7,33 @@ char buffer1[CAPACITY];
 char buffer2[CAPACITY];
 int c1 = 0;
 int c2 = 0;
+
+typedef struct {
+	int value;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+} sema_t;
+
+void sema_init(sema_t * sema,int value) {
+	sema->value = value;
+	pthread_mutex_init(&sema->mutex,NULL);
+	pthread_cond_init(&sema->cond,NULL);
+}
+
+void sema_wait(sema_t * sema) {
+	pthread_mutex_lock(&sema->mutex);
+	sema->value--;
+	while(sema->value < 0) 
+		pthread_cond_wait(&sema->cond,&sema->mutex);
+	pthread_mutex_unlock(&sema->mutex);
+}
+
+void sema_signal(sema_t * sema) {
+	pthread_mutex_lock(&sema->mutex);
+	++sema->value;
+	pthread_cond_signal(&sema->cond);
+	pthread_mutex_unlock(&sema->mutex);
+}
 int buffer_is_empty(int c) {
 	if (c == 1) 
 		return c1 == 0;
@@ -56,30 +83,35 @@ void put_item2(char c) {
 	buffer2[c2] = c;
 	c2++;	
 }
-pthread_mutex_t mutex1;
+/*pthread_mutex_t mutex1;
 pthread_mutex_t mutex2;
-pthread_mutex_t mutex_c1;
-pthread_mutex_t mutex_c2;
 pthread_cond_t wait_buffer1_empty;
 pthread_cond_t wait_buffer2_empty;
 
 pthread_cond_t wait_buffer1_full;
 pthread_cond_t wait_buffer2_full;
+*/
+
+sema_t mutex1;
+sema_t mutex2;
+sema_t wait_buffer1_empty;
+sema_t wait_buffer2_empty;
+sema_t wait_buffer1_full;
+sema_t wait_buffer2_full;
 
 void * consume(void * arg) {
 	int i;
 	char c;
 	for (i = 0; i < ITEM_COUNT; i++) {
-		pthread_mutex_lock(&mutex2);
-	//	pthread_mutex_lock(&mutex_c2);
-		while(buffer_is_empty(2)) {
-		//	pthread_mutex_unlock(&mutex2);	
-			pthread_cond_wait(&wait_buffer2_full,&mutex2);
-		}	
+//	        printf("*** in the cosume BEGIN ***\n");
+		sema_wait(&wait_buffer2_full);
+		sema_wait(&mutex2);
+
 		c = get_item2();
+
+		sema_signal(&mutex2);
+		sema_signal(&wait_buffer2_empty);
 		printf("        consume item: %c \n",c);
-		pthread_cond_signal(&wait_buffer2_empty);
-		pthread_mutex_unlock(&mutex2);
 	}
 	return NULL;
 }
@@ -87,20 +119,25 @@ void * compute(void * arg) {
 	int i;
 	char c;
 	for(i = 0; i < ITEM_COUNT; i++) {
-		pthread_mutex_lock(&mutex1);
-		pthread_mutex_lock(&mutex2);
-		while(buffer_is_empty(1))
-			pthread_cond_wait(&wait_buffer1_full,&mutex1);
-		while(buffer_is_full(2))
-			pthread_cond_wait(&wait_buffer2_empty,&mutex2);
+
+		sema_wait(&wait_buffer1_full);
+		sema_wait(&mutex1);
+
 		c = get_item1();		
 		c = c - 32;
+	
+		sema_signal(&wait_buffer1_empty);
+		sema_signal(&mutex1);
+
+		sema_wait(&wait_buffer2_empty);
+		sema_wait(&mutex2);
+		
 		put_item2(c);
+
+		sema_signal(&mutex2);
+		sema_signal(&wait_buffer2_full);
+//                printf("****in the conpute end*** \n");
 		printf("    compute item: %c \n",c);
-		pthread_cond_signal(&wait_buffer2_full);
-		pthread_cond_signal(&wait_buffer1_empty);
-		pthread_mutex_unlock(&mutex2);	
-		pthread_mutex_unlock(&mutex1);	
 	}	
 	return NULL;
 }
@@ -108,26 +145,29 @@ void produce() {
 	int i;
 	char c;
 	for (i = 0; i < ITEM_COUNT; i++) {
-	pthread_mutex_lock(&mutex1);
-	while(buffer_is_full(1))
-		pthread_cond_wait(&wait_buffer1_empty,&mutex1);
+	sema_wait(&wait_buffer1_empty);
+	sema_wait(&mutex1);
+
 	c = i + 'a';
 	put_item1(c);
 //	printf("buffer[%d],%c\n",i,c);
 	printf("produce item: %c \n",c);
-	pthread_cond_signal(&wait_buffer1_full);
-	pthread_mutex_unlock(&mutex1);		
+	
+	sema_signal(&mutex1);
+	sema_signal(&wait_buffer1_full);
 	}	
 }
 
 int main() {
 	pthread_t consumer_tid[2];
-	pthread_mutex_init(&mutex1,NULL);
-	pthread_mutex_init(&mutex2,NULL);
-	pthread_cond_init(&wait_buffer1_empty,NULL);	
-	pthread_cond_init(&wait_buffer2_empty,NULL);	
-	pthread_cond_init(&wait_buffer1_full,NULL);	
-	pthread_cond_init(&wait_buffer2_full,NULL);
+
+	sema_init(&mutex1,1);
+	sema_init(&mutex2,1);
+	sema_init(&wait_buffer1_empty,CAPACITY);
+	sema_init(&wait_buffer2_empty,CAPACITY);
+	sema_init(&wait_buffer1_full,0);
+	sema_init(&wait_buffer2_full,0);
+
 	pthread_create(&consumer_tid[0],NULL,compute,NULL);
 	pthread_create(&consumer_tid[1],NULL,consume,NULL);
 	produce();
