@@ -16,7 +16,9 @@ void split(char source[],char dest[HEIGHT][WIDTH]){
         char*p;
 	char*s = strdup(source);
 	char * p2 = strsep(&s,"|");
+	printf("p2 :%s\n",p2);
 	p2 = strsep(&s,"|");
+//	printf("p2: %s\n",p2);
 	if (p2) {
 		strcpy(se,"|");		
 	}
@@ -43,14 +45,16 @@ int pipeO(int i) {
 	int p[2];
 	pipe(p);
 	if (fork() == 0) {
-		close(p[0]);
 		dup2(p[1],1);
+		close(p[1]);
+		close(p[0]);
 	        execl("/bin/sh","sh","-c",splitArray1[i],NULL);
 		exit(0);			          
 		}
-	wait(NULL);
-	close(p[1]);
+	//wait(NULL);
 	dup2(p[0],0);
+	close(p[1]);
+	close(p[0]);
 	if (i == lon - 2) {
 	        execl("/bin/sh","sh","-c",splitArray1[i + 1],NULL);
 		}
