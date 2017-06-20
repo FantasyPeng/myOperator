@@ -56,12 +56,17 @@ int main() {
 	pthread_create(&workers[thread_num - 1],NULL,compute,&myparams[thread_num]);
 	int j;
 	float sum = 0;
-	for (j = 0; j < thread_num - 1; j++) {
+	int c = 0;
+	if (thread_num == 1) {
+		c = 2;}
+	else {
+		c = thread_num;}
+	for (j = 0; j < c - 1; j++) {
 		struct result * myresult;
 		pthread_join(workers[j],(void **)&myresult);
 		sum += myresult->sum;
 		free(myresult);
 	}
-	printf("%f\n",sum);
+	printf("%f\n",sum * 4);
 	return 0;
 }
